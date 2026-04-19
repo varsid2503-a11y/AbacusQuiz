@@ -35,7 +35,7 @@ interface HighScore {
 
 export default function App() {
   // Game State
-  const [gameState, setGameState] = useState<'start' | 'playing' | 'gameover'>('start');
+  const [gameState, setGameState] = useState<'start' | 'playing' | 'gameover' | 'practice'>('start');
   const [level, setLevel] = useState<DifficultyLevel>(1);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [userInput, setUserInput] = useState('');
@@ -48,6 +48,7 @@ export default function App() {
   const [feedback, setFeedback] = useState<'none' | 'correct' | 'error'>('none');
   const [highScores, setHighScores] = useState<HighScore[]>([]);
   const [userName, setUserName] = useState('Zen Master');
+  const [masterTimerDuration, setMasterTimerDuration] = useState(60);
 
   // Refs
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -121,9 +122,21 @@ export default function App() {
 
   // --- Handlers ---
   const startGame = useCallback(() => {
+    let initialTime = 60;
+    if (level === 1) initialTime = 20;
+    else if (level === 2) initialTime = 40;
+    else if (level === 3) initialTime = masterTimerDuration;
+
     setScore(0);
-    setTimeLeft(60);
+    setTimeLeft(initialTime);
     setGameState('playing');
+    setProblem(generateProblem(level));
+    setUserInput('');
+    if (!isMuted) playSound('click');
+  }, [level, isMuted, masterTimerDuration]);
+
+  const startPractice = useCallback(() => {
+    setGameState('practice');
     setProblem(generateProblem(level));
     setUserInput('');
     if (!isMuted) playSound('click');
@@ -152,7 +165,14 @@ export default function App() {
   }, [score, level, userName, highScores, isMuted]);
 
   const handleInput = (val: string) => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' && gameState !== 'practice') return;
+    
+    // Validation: Only numeric and max 5 digits
+    if (val !== 'BS' && val !== 'OK') {
+      if (!/^\d$/.test(val)) return; // Ensure val is a single digit
+      if (userInput.length >= 5) return;
+    }
+
     if (!isMuted) playSound('click');
     
     if (val === 'BS') {
@@ -165,9 +185,7 @@ export default function App() {
       return;
     }
 
-    if (userInput.length < 5) {
-      setUserInput(prev => prev + val);
-    }
+    setUserInput(prev => prev + val);
   };
 
   const submitAnswer = useCallback(() => {
@@ -200,7 +218,7 @@ export default function App() {
   // Keyboard support
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
-      if (gameState !== 'playing') return;
+      if (gameState !== 'playing' && gameState !== 'practice') return;
       if (e.key >= '0' && e.key <= '9') handleInput(e.key);
       if (e.key === 'Backspace') handleInput('BS');
       if (e.key === 'Enter') handleInput('OK');
@@ -257,7 +275,8 @@ export default function App() {
               {level === 1 ? 'Apprentice' : level === 2 ? 'Adept' : 'Grandmaster'}
             </div>
             <div className="font-mono text-cyber-teal text-xl">
-              {gameState === 'playing' ? `00:${timeLeft.toString().padStart(2, '0')}` : '--:--'}
+              {gameState === 'playing' ? `00:${timeLeft.toString().padStart(2, '0')}` : 
+               gameState === 'practice' ? '∞ : ∞' : '--:--'}
             </div>
             <button 
               onClick={() => setIsMuted(!isMuted)} 
@@ -283,23 +302,31 @@ export default function App() {
           </div>
         </header>
 
-        <main className={`flex-1 min-h-0 ${gameState === 'playing' ? 'lg:grid lg:grid-cols-[240px_1fr_240px] gap-8' : 'flex items-center justify-center'}`}>
-          {/* Left Sidebar (Only in playing mode on large screens) */}
-          {gameState === 'playing' && (
+        <main className={`flex-1 min-h-0 ${gameState === 'playing' || gameState === 'practice' ? 'lg:grid lg:grid-cols-[240px_1fr_240px] gap-8' : 'flex items-center justify-center'}`}>
+          {/* Left Sidebar (Only in playing/practice mode on large screens) */}
+          {(gameState === 'playing' || gameState === 'practice') && (
             <aside className="hidden lg:flex flex-col bg-cyber-surface rounded-2xl p-5 border border-white/5">
-              <div className="text-[11px] uppercase tracking-[1.5px] text-text-dim mb-4 flex justify-between">
-                <span>Daily Leaderboard</span>
+              <div className="text-[11px] uppercase tracking-[1.5px] text-text-dim mb-4 flex justify-between border-b border-white/5 pb-2">
+                <span>{level === 1 ? 'Apprentice' : level === 2 ? 'Adept' : 'Master'} Leaderboard</span>
                 <span>PTS</span>
               </div>
               <div className="space-y-3 mt-4">
-                {highScores.map((s, i) => (
-                  <div key={i} className="flex justify-between items-center font-mono text-sm">
+                {highScores
+                  .filter(s => s.level === level)
+                  .slice(0, 10)
+                  .map((s, i) => (
+                  <motion.div 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    key={`${s.name}-${s.score}-${i}`} 
+                    className="flex justify-between items-center font-mono text-sm"
+                  >
                     <span className="text-cyber-teal font-bold">{String(i+1).padStart(2, '0')}</span>
                     <span className="flex-1 ml-3 truncate opacity-80">{s.name}</span>
                     <span className="ml-2">{s.score.toLocaleString()}</span>
-                  </div>
+                  </motion.div>
                 ))}
-                {highScores.length === 0 && <p className="text-xs italic opacity-30">No transmissions yet...</p>}
+                {highScores.filter(s => s.level === level).length === 0 && <p className="text-xs italic opacity-30 mt-4">No records for this level.</p>}
               </div>
               
               <div className="mt-auto pt-5 border-t border-white/10 text-xs">
@@ -378,32 +405,104 @@ export default function App() {
                   })}
                 </div>
 
-                <div className="mb-10">
+                <div className="mb-10 max-w-sm mx-auto">
+                  <p className="text-xs uppercase tracking-widest opacity-40 mb-3">Operator ID</p>
                   <input 
                     type="text" 
                     value={userName} 
                     onChange={(e) => {
-                      setUserName(e.target.value);
-                      localStorage.setItem('zen_abacus_name', e.target.value);
+                      const val = e.target.value;
+                      // Validation: Alphanumeric and max 12 characters for clean leaderboard
+                      if (/^[a-zA-Z0-9 ]*$/.test(val) && val.length <= 12) {
+                        setUserName(val);
+                        localStorage.setItem('zen_abacus_name', val);
+                      }
                     }}
-                    className="w-full bg-cyber-bg border border-white/10 rounded-2xl p-4 text-center focus:outline-none focus:border-cyber-purple/50 transition-colors text-lg"
-                    placeholder="IDENTIFY YOURSELF"
+                    className="w-full bg-cyber-bg border border-white/10 rounded-2xl p-4 text-center focus:outline-none focus:ring-2 focus:ring-cyber-teal/30 focus:border-cyber-teal/50 transition-all text-lg mb-6 uppercase tracking-[0.2em] font-bold shadow-inner placeholder:opacity-20 translate-y-0 active:scale-[0.99]"
+                    placeholder="ENTER CODENAME"
                   />
+
+                  {level === 3 && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="space-y-3"
+                    >
+                      <div className="flex justify-between items-center text-[10px] font-mono uppercase tracking-widest opacity-50">
+                        <span>Master Trial Duration</span>
+                        <span className="text-cyber-purple">{masterTimerDuration}s</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="30" 
+                        max="180" 
+                        step="10"
+                        value={masterTimerDuration}
+                        onChange={(e) => setMasterTimerDuration(parseInt(e.target.value))}
+                        className="w-full accent-cyber-purple h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <p className="text-[10px] opacity-30 italic text-left">Adjust frequency for high-throughput calculation</p>
+                    </motion.div>
+                  )}
                 </div>
 
-                <button
-                  onClick={startGame}
-                  className="w-full py-5 bg-cyber-purple text-white rounded-2xl font-black text-xl hover:bg-cyber-purple/90 transition-all shadow-xl shadow-cyber-purple/20"
-                >
-                  START SESSION
-                </button>
+                <div className="flex gap-4">
+                  <button
+                    onClick={startGame}
+                    className="flex-1 py-5 bg-cyber-purple text-white rounded-2xl font-black text-xl hover:bg-cyber-purple/90 transition-all shadow-xl shadow-cyber-purple/20 flex items-center justify-center gap-3"
+                  >
+                    <Zap className="w-6 h-6 fill-current" />
+                    SPEED TRIAL
+                  </button>
+                  <button
+                    onClick={startPractice}
+                    className="flex-1 py-5 bg-cyber-surface border border-white/10 text-white rounded-2xl font-black text-xl hover:bg-white/5 transition-all flex items-center justify-center gap-3"
+                  >
+                    <Play className="w-6 h-6 fill-current" />
+                    PRACTICE
+                  </button>
+                </div>
+
+                {/* Global Hall of Fame */}
+                <div className="mt-12 pt-10 border-t border-white/5">
+                  <div className="flex items-center gap-3 justify-center mb-8">
+                    <Trophy className="w-4 h-4 text-cyber-teal" />
+                    <h3 className="text-[10px] font-mono uppercase tracking-[0.4em] text-text-dim">Global Hall of Fame</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[1, 2, 3].map(l => {
+                      const levelTopScores = highScores
+                        .filter(s => s.level === l)
+                        .sort((a, b) => b.score - a.score)
+                        .slice(0, 1);
+                      
+                      const levelName = l === 1 ? 'Apprentice' : l === 2 ? 'Adept' : 'Master';
+                      const record = levelTopScores[0];
+
+                      return (
+                        <div key={l} className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl flex flex-col items-center">
+                          <p className="text-[9px] font-mono text-cyber-teal/50 uppercase tracking-widest mb-2">{levelName}</p>
+                          {record ? (
+                            <div className="text-center">
+                              <p className="text-lg font-black tracking-tight text-white mb-0.5">{record.score.toLocaleString()}</p>
+                              <p className="text-[10px] opacity-40 uppercase font-mono">{record.name}</p>
+                            </div>
+                          ) : (
+                            <p className="text-[10px] opacity-20 italic">No record</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </motion.div>
             )}
 
-            {/* Playing State */}
-            {gameState === 'playing' && (
+            {/* Playing or Practice State */}
+            {(gameState === 'playing' || gameState === 'practice') && (
               <motion.div
-                key="playing"
+                key={gameState}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -414,14 +513,32 @@ export default function App() {
                     feedback === 'error' ? 'border-cyber-error animate-shake' : 
                     'border-cyber-teal/10'}`}
                 >
+                  {gameState === 'practice' && (
+                    <button 
+                      onClick={() => setGameState('start')}
+                      className="absolute top-4 left-4 p-2 hover:bg-white/5 rounded-lg transition-colors group flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-text-dim"
+                    >
+                      <ChevronLeft className="w-3 h-3" />
+                      Exit Practice
+                    </button>
+                  )}
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyber-teal to-cyber-purple" />
                   
-                  <div className="mb-4">
-                    <h3 className="text-[84px] font-bold tracking-[-2px] leading-tight">
-                      {problem?.question}
-                    </h3>
+                  <div className="mb-4 overflow-hidden">
+                    <AnimatePresence mode="wait">
+                      <motion.h3 
+                        key={problem?.question}
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -20, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="text-[84px] font-bold tracking-[-2px] leading-tight"
+                      >
+                        {problem?.question}
+                      </motion.h3>
+                    </AnimatePresence>
                     <p className="text-sm text-text-dim mt-2 uppercase tracking-wide">
-                      {problem?.rule || 'Mental Calculation Active'}
+                      {gameState === 'practice' ? `Practice: Level 0${level}` : (problem?.rule || 'Mental Calculation Active')}
                     </p>
                   </div>
 
@@ -432,10 +549,14 @@ export default function App() {
                   </div>
 
                   <div className="w-full h-1.5 bg-white/10 rounded-full mt-8 overflow-hidden">
-                    <motion.div 
-                      className="h-full bg-cyber-teal shadow-[0_0_15px_rgba(100,210,255,1)]"
-                      style={{ width: `${(timeLeft / 60) * 100}%` }}
-                    />
+                    {gameState === 'playing' ? (
+                      <motion.div 
+                        className="h-full bg-cyber-teal shadow-[0_0_15px_rgba(100,210,255,1)]"
+                        style={{ width: `${(timeLeft / 60) * 100}%` }}
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-cyber-teal/20 animate-pulse" />
+                    )}
                   </div>
                 </div>
 
@@ -484,8 +605,8 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* Right Sidebar (Optional session summary as per design placeholder) */}
-          {gameState === 'playing' && (
+          {/* Right Sidebar (Only in playing/practice mode) */}
+          {(gameState === 'playing' || gameState === 'practice') && (
             <aside className="hidden lg:flex flex-col bg-cyber-surface rounded-2xl p-5 border border-white/5">
               <div className="text-[11px] uppercase tracking-[1.5px] text-text-dim mb-4 flex justify-between">
                 <span>Recent Session</span>
