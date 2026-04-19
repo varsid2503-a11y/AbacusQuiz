@@ -1,6 +1,6 @@
 # 🧘 ZenAbacus: Cyber-Zen Mental Math
 
-ZenAbacus is a professional, multi-sensory mental math training platform designed to bridge traditional abacus techniques with modern high-performance cognitive training. Inspired by the "Cyber-Zen" aesthetic, it combines rigorous mathematical logic with AI-generated atmospheric elements.,,
+ZenAbacus is a professional, multi-sensory mental math training platform designed to bridge traditional abacus techniques with modern high-performance cognitive training. Inspired by the "Cyber-Zen" aesthetic, it combines rigorous mathematical logic with AI-generated atmospheric elements.
 
 ## 🚀 Core Functionality
 

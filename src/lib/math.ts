@@ -49,37 +49,66 @@ function generateLevel1(): Problem {
 
 /**
  * Level 2: Partner Rules (Small Friend / Big Friend)
- * Small Friends (sum to 5), Big Friends (sum to 10)
+ * Addition and Subtraction logic for partners.
  */
 function generateLevel2(): Problem {
+  const isAddition = Math.random() > 0.5;
   const ruleType = Math.random() > 0.5 ? 'small' : 'big';
   
   if (ruleType === 'small') {
-    // Add something that requires a small friend
-    // e.g. 4 + 1 -> 4 + (5-4)
-    const b = Math.floor(Math.random() * 4) + 1; // 1-4
-    const a = 5 - Math.floor(Math.random() * b) - 1; 
-    // Wait, simpler:
-    // To need a small friend for +X, we must have enough space for 5 but not for X.
-    // Meaning current value < 5 and (current value + X) > 4
-    const x = Math.floor(Math.random() * 4) + 1; // What we are adding
-    const current = 5 - Math.floor(Math.random() * x) - 1; // If x=1, current must be 4. If x=2, current can be 3 or 4.
-    
-    return { 
-      question: `${current} + ${x}`, 
-      answer: current + x, 
-      rule: `Small Friend: +${x} = +5 - ${SMALL_FRIENDS[x]}` 
-    };
+    if (isAddition) {
+      // Small Friend Addition: +x = +5 - partner
+      const x = Math.floor(Math.random() * 4) + 1; // 1-4
+      const partner = SMALL_FRIENDS[x];
+      // Current beads must have 5-bead available and fewer than x 1-beads.
+      // E.g. for +1, current must be 4.
+      const current = 5 - Math.floor(Math.random() * x) - 1; 
+      return { 
+        question: `${current} + ${x}`, 
+        answer: current + x, 
+        rule: `Small Friend: +${x} = +5 - ${partner}` 
+      };
+    } else {
+      // Small Friend Subtraction: -x = -5 + partner
+      const x = Math.floor(Math.random() * 4) + 1; // 1-4
+      const partner = SMALL_FRIENDS[x];
+      // Current beads must have 5-bead down and not enough 1-beads to subtract x.
+      // E.g. for -1, current must be 5, 6, 7, 8 or 9? 
+      // Wait, if current is 5, -1 needs rule. (5 is just the top bead).
+      // If current is 6 (5+1), -2 needs rule (-2 = -5 + 3).
+      // Condition: current is in [5, 5 + x - 1]
+      const current = 5 + Math.floor(Math.random() * x);
+      return {
+        question: `${current} - ${x}`,
+        answer: current - x,
+        rule: `Small Friend: -${x} = -5 + ${partner}`
+      };
+    }
   } else {
-    // Big Friend
-    // current + x >= 10
-    const x = Math.floor(Math.random() * 9) + 1; // 1-9
-    const current = 10 - Math.floor(Math.random() * x) - 1;
-    return { 
-      question: `${current} + ${x}`, 
-      answer: current + x, 
-      rule: `Big Friend: +${x} = +10 - ${BIG_FRIENDS[x]}` 
-    };
+    if (isAddition) {
+      // Big Friend Addition: +x = +10 - partner
+      const x = Math.floor(Math.random() * 9) + 1; // 1-9
+      const partner = BIG_FRIENDS[x];
+      const current = 10 - Math.floor(Math.random() * x) - 1;
+      return { 
+        question: `${current} + ${x}`, 
+        answer: current + x, 
+        rule: `Big Friend: +${x} = +10 - ${partner}` 
+      };
+    } else {
+      // Big Friend Subtraction: -x = -10 + partner
+      const x = Math.floor(Math.random() * 9) + 1; // 1-9
+      const partner = BIG_FRIENDS[x];
+      // Current must be numeric logic: current - x < 0 on this rod? 
+      // Let's simplify: 10 to (10 + x - 1)
+      const current = 10 + Math.floor(Math.random() * x);
+      // We limit to 1-digit results or small 2-digit for abacus clarity
+      return {
+        question: `${current} - ${x}`,
+        answer: current - x,
+        rule: `Big Friend: -${x} = -10 + ${partner}`
+      };
+    }
   }
 }
 

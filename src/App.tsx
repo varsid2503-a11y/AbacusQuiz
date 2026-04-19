@@ -5,25 +5,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Trophy, 
-  Settings, 
-  RotateCcw, 
-  Play, 
-  History,
-  Info,
-  ChevronLeft,
-  Volume2,
-  VolumeX,
-  Zap,
-  Music,
-  Loader2,
-  Target,
-  Flame
-} from 'lucide-react';
+import { Zap, Play, ChevronLeft, ChevronRight, BookOpen, Trophy, Settings, RotateCcw, History, Info, Volume2, VolumeX, Music, Loader2, Target, Flame } from 'lucide-react';
 import { DifficultyLevel, Problem, generateProblem } from './lib/math.ts';
 import { playSound } from './lib/sounds.ts';
 import { generateFavicon, generateBGM } from './lib/ai.ts';
+import { TUTORIALS } from './lib/tutorials.ts';
 
 // --- Types ---
 interface HighScore {
@@ -35,7 +21,7 @@ interface HighScore {
 
 export default function App() {
   // Game State
-  const [gameState, setGameState] = useState<'start' | 'playing' | 'gameover' | 'practice'>('start');
+  const [gameState, setGameState] = useState<'start' | 'playing' | 'gameover' | 'practice' | 'tutorial'>('start');
   const [level, setLevel] = useState<DifficultyLevel>(1);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [userInput, setUserInput] = useState('');
@@ -49,6 +35,7 @@ export default function App() {
   const [highScores, setHighScores] = useState<HighScore[]>([]);
   const [userName, setUserName] = useState('Zen Master');
   const [masterTimerDuration, setMasterTimerDuration] = useState(60);
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
 
   // Refs
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -102,8 +89,10 @@ export default function App() {
       audio.loop = true;
       audio.volume = 0.3;
       bgmRef.current = audio;
-      audio.play();
-      setIsPlayingBgm(true);
+      if (gameState !== 'start') {
+        audio.play();
+        setIsPlayingBgm(true);
+      }
     }
   };
 
@@ -141,6 +130,12 @@ export default function App() {
     setUserInput('');
     if (!isMuted) playSound('click');
   }, [level, isMuted]);
+
+  const startTutorial = useCallback(() => {
+    setGameState('tutorial');
+    setTutorialStepIndex(0);
+    if (!isMuted) playSound('click');
+  }, [isMuted]);
 
   const endGame = useCallback(() => {
     setGameState('gameover');
@@ -276,7 +271,7 @@ export default function App() {
             </div>
             <div className="font-mono text-cyber-teal text-xl">
               {gameState === 'playing' ? `00:${timeLeft.toString().padStart(2, '0')}` : 
-               gameState === 'practice' ? '∞ : ∞' : '--:--'}
+               gameState === 'practice' || gameState === 'tutorial' ? '∞ : ∞' : '--:--'}
             </div>
             <button 
               onClick={() => setIsMuted(!isMuted)} 
@@ -302,9 +297,9 @@ export default function App() {
           </div>
         </header>
 
-        <main className={`flex-1 min-h-0 ${gameState === 'playing' || gameState === 'practice' ? 'lg:grid lg:grid-cols-[240px_1fr_240px] gap-8' : 'flex items-center justify-center'}`}>
-          {/* Left Sidebar (Only in playing/practice mode on large screens) */}
-          {(gameState === 'playing' || gameState === 'practice') && (
+        <main className={`flex-1 min-h-0 ${gameState === 'playing' || gameState === 'practice' || gameState === 'tutorial' ? 'lg:grid lg:grid-cols-[240px_1fr_240px] gap-8' : 'flex items-center justify-center'}`}>
+          {/* Left Sidebar (Only in playing/practice/tutorial mode on large screens) */}
+          {(gameState === 'playing' || gameState === 'practice' || gameState === 'tutorial') && (
             <aside className="hidden lg:flex flex-col bg-cyber-surface rounded-2xl p-5 border border-white/5">
               <div className="text-[11px] uppercase tracking-[1.5px] text-text-dim mb-4 flex justify-between border-b border-white/5 pb-2">
                 <span>{level === 1 ? 'Apprentice' : level === 2 ? 'Adept' : 'Master'} Leaderboard</span>
@@ -446,7 +441,7 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <button
                     onClick={startGame}
                     className="flex-1 py-5 bg-cyber-purple text-white rounded-2xl font-black text-xl hover:bg-cyber-purple/90 transition-all shadow-xl shadow-cyber-purple/20 flex items-center justify-center gap-3"
@@ -460,6 +455,13 @@ export default function App() {
                   >
                     <Play className="w-6 h-6 fill-current" />
                     PRACTICE
+                  </button>
+                  <button
+                    onClick={startTutorial}
+                    className="flex-1 py-5 bg-cyber-surface border border-white/10 text-cyber-teal rounded-2xl font-black text-xl hover:bg-white/5 transition-all flex items-center justify-center gap-3"
+                  >
+                    <BookOpen className="w-6 h-6" />
+                    TUTORIAL
                   </button>
                 </div>
 
@@ -506,8 +508,30 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center gap-6"
+                className="flex flex-col items-center justify-center gap-6 w-full max-w-2xl"
               >
+                {gameState === 'playing' && (
+                  <div className="w-full space-y-2 mb-2">
+                    <div className="flex justify-between items-end px-2">
+                      <div className="text-[10px] font-mono text-cyber-teal uppercase tracking-widest opacity-60">
+                        Tier Progression
+                      </div>
+                      <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
+                        Target: <span className="text-white font-bold">{Math.max(highScores.filter(s => s.level === level)[0]?.score || 0, 1000).toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden border border-white/5 p-[1px]">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ 
+                          width: `${Math.min((score / Math.max(highScores.filter(s => s.level === level)[0]?.score || 0, 1000)) * 100, 100)}%` 
+                        }}
+                        className="h-full bg-gradient-to-r from-cyber-teal to-cyber-purple shadow-[0_0_10px_rgba(100,210,255,0.5)]"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className={`w-full bg-white/[0.03] rounded-[24px] p-12 text-center border relative overflow-hidden transition-all duration-300
                   ${feedback === 'correct' ? 'border-cyber-correct' : 
                     feedback === 'error' ? 'border-cyber-error animate-shake' : 
@@ -538,7 +562,7 @@ export default function App() {
                       </motion.h3>
                     </AnimatePresence>
                     <p className="text-sm text-text-dim mt-2 uppercase tracking-wide">
-                      {gameState === 'practice' ? `Practice: Level 0${level}` : (problem?.rule || 'Mental Calculation Active')}
+                      {gameState === 'practice' ? `Practice: Level 0${level}${problem?.rule ? ` (${problem.rule})` : ''}` : (problem?.rule || 'Mental Calculation Active')}
                     </p>
                   </div>
 
@@ -561,6 +585,91 @@ export default function App() {
                 </div>
 
                 {renderNumpad()}
+              </motion.div>
+            )}
+
+            {/* Tutorial State */}
+            {gameState === 'tutorial' && (
+              <motion.div
+                key="tutorial"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                className="w-full max-w-2xl bg-cyber-surface border border-white/10 p-10 rounded-[40px] text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyber-teal to-cyber-purple" />
+                
+                <div className="flex justify-between items-center mb-10">
+                  <div>
+                    <p className="text-[10px] font-mono text-cyber-teal uppercase tracking-[0.3em] mb-1">Knowledge Retrieval</p>
+                    <h2 className="text-2xl font-black uppercase tracking-tight">Level 0{level} Tutorial</h2>
+                  </div>
+                  <button 
+                    onClick={() => setGameState('start')}
+                    className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5 opacity-60" />
+                  </button>
+                </div>
+
+                <div className="min-h-[300px]">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={tutorialStepIndex}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <p className="text-[10px] font-mono text-cyber-purple uppercase tracking-widest mb-4">
+                        Step {tutorialStepIndex + 1} of {TUTORIALS.find(t => t.level === level)?.steps.length}
+                      </p>
+                      <h3 className="text-xl font-bold mb-4 text-white">
+                        {TUTORIALS.find(t => t.level === level)?.steps[tutorialStepIndex].title}
+                      </h3>
+                      <p className="text-sm leading-relaxed text-text-dim mb-8">
+                        {TUTORIALS.find(t => t.level === level)?.steps[tutorialStepIndex].content}
+                      </p>
+                      
+                      {TUTORIALS.find(t => t.level === level)?.steps[tutorialStepIndex].example && (
+                        <div className="bg-white/[0.03] border border-white/5 p-6 rounded-2xl">
+                          <p className="text-[10px] uppercase font-mono tracking-widest opacity-30 mb-2">Technical Example</p>
+                          <p className="text-sm italic text-cyber-teal">
+                            {TUTORIALS.find(t => t.level === level)?.steps[tutorialStepIndex].example}
+                          </p>
+                        </div>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                <div className="flex gap-4 mt-12 pt-8 border-t border-white/5">
+                  <button
+                    disabled={tutorialStepIndex === 0}
+                    onClick={() => setTutorialStepIndex(prev => prev - 1)}
+                    className="flex-1 py-4 glass rounded-2xl font-bold opacity-40 hover:opacity-100 disabled:opacity-5 transition-all flex items-center justify-center gap-2"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> PREV
+                  </button>
+                  {tutorialStepIndex < (TUTORIALS.find(t => t.level === level)?.steps.length || 0) - 1 ? (
+                    <button
+                      onClick={() => {
+                        setTutorialStepIndex(prev => prev + 1);
+                        if (!isMuted) playSound('click');
+                      }}
+                      className="flex-[2] py-4 bg-cyber-teal text-cyber-bg rounded-2xl font-black uppercase tracking-tight hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                    >
+                      NEXT STEP <ChevronRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setGameState('practice')}
+                      className="flex-[2] py-4 bg-cyber-purple text-white rounded-2xl font-black uppercase tracking-tight hover:bg-cyber-purple/90 transition-all flex items-center justify-center gap-2"
+                    >
+                      GO TO PRACTICE <Play className="w-4 h-4 fill-current" />
+                    </button>
+                  )}
+                </div>
               </motion.div>
             )}
 
@@ -605,8 +714,8 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* Right Sidebar (Only in playing/practice mode) */}
-          {(gameState === 'playing' || gameState === 'practice') && (
+          {/* Right Sidebar (Only in playing/practice/tutorial mode) */}
+          {(gameState === 'playing' || gameState === 'practice' || gameState === 'tutorial') && (
             <aside className="hidden lg:flex flex-col bg-cyber-surface rounded-2xl p-5 border border-white/5">
               <div className="text-[11px] uppercase tracking-[1.5px] text-text-dim mb-4 flex justify-between">
                 <span>Recent Session</span>
