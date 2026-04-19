@@ -1,0 +1,21 @@
+{
+  "name": "ZenAbacus: Cyber-Zen Mental Math",
+  "short_name": "ZenAbacus",
+  "description": "Professional abacus training tool with a cyber-zen aesthetic.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0b1e",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/zenabacus/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/seed/zenabacus/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
