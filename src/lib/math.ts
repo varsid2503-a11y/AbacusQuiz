@@ -11,8 +11,17 @@ export interface Problem {
   rule?: string;
 }
 
+export interface HighScore {
+  name: string;
+  score: number;
+  level: DifficultyLevel;
+  date: string;
+}
+
 const SMALL_FRIENDS: Record<number, number> = { 1: 4, 2: 3, 3: 2, 4: 1 };
 const BIG_FRIENDS: Record<number, number> = { 1: 9, 2: 8, 3: 7, 4: 6, 5: 5, 6: 4, 7: 3, 8: 2, 9: 1 };
+
+const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 export function generateProblem(level: DifficultyLevel): Problem {
   switch (level) {
@@ -27,96 +36,72 @@ export function generateProblem(level: DifficultyLevel): Problem {
   }
 }
 
-/**
- * Level 1: Simple 1-digit addition/subtraction.
- * No carries, no partner rules.
- */
 function generateLevel1(): Problem {
   const isAddition = Math.random() > 0.5;
   if (isAddition) {
-    const a = Math.floor(Math.random() * 5) + 1; // 1-5
-    const b = Math.floor(Math.random() * 4) + 1; // 1-4
-    // Ensure no carry and sum feels "simple" for abacus (fits on one rod without rules)
-    // Rule: sum <= 9 and individually fits?
-    // Let's just keep it simple: sum <= 9
+    const a = randomInt(1, 5);
+    const b = randomInt(1, 9 - a);
     return { question: `${a} + ${b}`, answer: a + b };
-  } else {
-    const a = Math.floor(Math.random() * 8) + 2; // 2-9
-    const b = Math.floor(Math.random() * (a - 1)) + 1; // 1 to a-1
-    return { question: `${a} - ${b}`, answer: a - b };
   }
+
+  const a = randomInt(2, 9);
+  const b = randomInt(1, a - 1);
+  return { question: `${a} - ${b}`, answer: a - b };
 }
 
-/**
- * Level 2: Partner Rules (Small Friend / Big Friend)
- * Addition and Subtraction logic for partners.
- */
 function generateLevel2(): Problem {
   const isAddition = Math.random() > 0.5;
-  const ruleType = Math.random() > 0.5 ? 'small' : 'big';
-  
-  if (ruleType === 'small') {
+  const useSmallFriend = Math.random() > 0.5;
+
+  if (useSmallFriend) {
     if (isAddition) {
-      // Small Friend Addition: +x = +5 - partner
-      const x = Math.floor(Math.random() * 4) + 1; // 1-4
+      const x = randomInt(2, 4);
       const partner = SMALL_FRIENDS[x];
-      // Current beads must have 5-bead available and fewer than x 1-beads.
-      // E.g. for +1, current must be 4.
-      const current = 5 - Math.floor(Math.random() * x) - 1; 
-      return { 
-        question: `${current} + ${x}`, 
-        answer: current + x, 
-        rule: `Small Friend: +${x} = +5 - ${partner}` 
-      };
-    } else {
-      // Small Friend Subtraction: -x = -5 + partner
-      const x = Math.floor(Math.random() * 4) + 1; // 1-4
-      const partner = SMALL_FRIENDS[x];
-      // Current beads must have 5-bead down and not enough 1-beads to subtract x.
-      // E.g. for -1, current must be 5, 6, 7, 8 or 9? 
-      // Wait, if current is 5, -1 needs rule. (5 is just the top bead).
-      // If current is 6 (5+1), -2 needs rule (-2 = -5 + 3).
-      // Condition: current is in [5, 5 + x - 1]
-      const current = 5 + Math.floor(Math.random() * x);
+      const current = randomInt(1, 5 - x);
       return {
-        question: `${current} - ${x}`,
-        answer: current - x,
-        rule: `Small Friend: -${x} = -5 + ${partner}`
+        question: `${current} + ${x}`,
+        answer: current + x,
+        rule: `Small Friend: +${x} = +5 - ${partner}`,
       };
     }
-  } else {
-    if (isAddition) {
-      // Big Friend Addition: +x = +10 - partner
-      const x = Math.floor(Math.random() * 9) + 1; // 1-9
-      const partner = BIG_FRIENDS[x];
-      const current = 10 - Math.floor(Math.random() * x) - 1;
-      return { 
-        question: `${current} + ${x}`, 
-        answer: current + x, 
-        rule: `Big Friend: +${x} = +10 - ${partner}` 
-      };
-    } else {
-      // Big Friend Subtraction: -x = -10 + partner
-      const x = Math.floor(Math.random() * 9) + 1; // 1-9
-      const partner = BIG_FRIENDS[x];
-      // Current must be numeric logic: current - x < 0 on this rod? 
-      // Let's simplify: 10 to (10 + x - 1)
-      const current = 10 + Math.floor(Math.random() * x);
-      // We limit to 1-digit results or small 2-digit for abacus clarity
-      return {
-        question: `${current} - ${x}`,
-        answer: current - x,
-        rule: `Big Friend: -${x} = -10 + ${partner}`
-      };
-    }
+
+    const x = randomInt(1, 4);
+    const partner = SMALL_FRIENDS[x];
+    const current = randomInt(5, 9);
+    return {
+      question: `${current} - ${x}`,
+      answer: current - x,
+      rule: `Small Friend: -${x} = -5 + ${partner}`,
+    };
   }
+
+  if (isAddition) {
+    const x = randomInt(5, 9);
+    const partner = BIG_FRIENDS[x];
+    const current = randomInt(1, 10 - x);
+    return {
+      question: `${current} + ${x}`,
+      answer: current + x,
+      rule: `Big Friend: +${x} = +10 - ${partner}`,
+    };
+  }
+
+  const x = randomInt(5, 9);
+  const partner = BIG_FRIENDS[x];
+  const current = randomInt(x, 18);
+  return {
+    question: `${current} - ${x}`,
+    answer: current - x,
+    rule: `Big Friend: -${x} = -10 + ${partner}`,
+  };
 }
 
-/**
- * Level 3: 2-digit by 1-digit multiplication
- */
 function generateLevel3(): Problem {
-  const a = Math.floor(Math.random() * 90) + 10; // 10-99
-  const b = Math.floor(Math.random() * 8) + 2; // 2-9
-  return { question: `${a} × ${b}`, answer: a * b };
+  const a = randomInt(10, 99);
+  const b = randomInt(2, 9);
+  return {
+    question: `${a} × ${b}`,
+    answer: a * b,
+    explanation: `Multiply ${a} by ${b} with a balanced technique.`,
+  };
 }

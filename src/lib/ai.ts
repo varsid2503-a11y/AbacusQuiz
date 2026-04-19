@@ -1,8 +1,23 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let ai: GoogleGenAI | null = null;
+
+// Initialize AI only if API key is available (for server-side or build-time use)
+try {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    ai = new GoogleGenAI({ apiKey });
+  }
+} catch (error) {
+  console.warn("GoogleGenAI initialization skipped: API key not available or running in browser");
+}
 
 export async function generateFavicon(): Promise<string | null> {
+  if (!ai) {
+    console.warn("Favicon generation skipped: API not available");
+    return null;
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -32,6 +47,11 @@ export async function generateFavicon(): Promise<string | null> {
 }
 
 export async function generateBGM(): Promise<string | null> {
+  if (!ai) {
+    console.warn("BGM generation skipped: API not available");
+    return null;
+  }
+
   try {
     const response = await ai.models.generateContentStream({
       model: "lyria-3-clip-preview",
@@ -68,3 +88,4 @@ export async function generateBGM(): Promise<string | null> {
   }
   return null;
 }
+
