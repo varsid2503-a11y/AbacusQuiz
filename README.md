@@ -4,7 +4,6 @@ Interactive Soroban practice, timed mental-math quizzes, and a progress dashboar
 
 ## Stack
 
-- **Client:** React, Vite, Tailwind CSS, Framer Motion, Recharts
 - **Server:** Node.js, Express, MongoDB (optional — in-memory fallback without DB)
 
 ## Quick start
@@ -15,7 +14,6 @@ cp .env.example .env
 npm run dev
 ```
 
-- App: http://localhost:5173  
 - API: http://localhost:4000  
 
 Without MongoDB, auth and quiz history use in-memory storage (resets on server restart).

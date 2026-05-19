@@ -2,6 +2,8 @@ node_modules
 dist
 build
 server/node_modules
+server/dist
+*.prompt.md
 .env
 .env.local
 *.log
